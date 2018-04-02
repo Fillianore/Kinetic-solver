@@ -1,37 +1,38 @@
 function KineticSolver()
-% A kinetic solver code based on Matlab written by JianFu Chen
-% under the guidance of PeiJun Hu and HaiFeng Wang on 2014/4/4
+% A kinetic solver based on matlab code which was written by JianFu Chen
+% under the guidance of professor PeiJun Hu and HaiFeng Wang on 2014/4/4
 % at East China University of Science and Technology
 
 % The reaction mechanism expressions:
-% H2O(c) + #1 <-> OH_minus#1 + proton(c)
-% OH_minus#1 + hole(c) <-> OH_rad#1
-% OH_rad#1 <-> O_minus#1 + proton(c)
-% O_minus#1 + O_minus#1 <-> O2_2minus#1 + #1
-% O2_2minus#1 + hole(c) <-> O2_minus#1
-% O2_minus#1 + hole(c) <-> O2(p) + #1
-% Obr_2minus#2 + hole(c) <-> Obr_minus#2
-% Obr_minus#2 + OH_rad#1 <-> ObrOH_minus#2 + #1
-% ObrOH_minus#2 + hole(c) <-> ObrOH#2
-% ObrOH#2 <-> ObrO_minus#2 + proton(c)
-% ObrO_minus#2 + hole(c) <-> O2(p) + #2
-% H2O(c) + #2 <-> H2O#2
-% H2O#2 <-> OH_minus#2 + proton(c)
-% OH_minus#2 <-> Obr_2minus#2 + proton(c)
+% <01> : H2O(c) + #1 <-> OH_minus#1 + proton(c)
+% <02> : OH_minus#1 + hole(c) <-> OH_rad#1
+% <03> : OH_rad#1 <-> O_minus#1 + proton(c)
+% <04> : O_minus#1 + O_minus#1 <-> O2_2minus#1 + #1
+% <05> : O2_2minus#1 + hole(c) <-> O2_minus#1
+% <06> : O2_minus#1 + hole(c) <-> O2(p) + #1
+% <07> : Obr_2minus#2 + hole(c) <-> Obr_minus#2
+% <08> : Obr_minus#2 + OH_rad#1 <-> ObrOH_minus#2 + #1
+% <09> : ObrOH_minus#2 + hole(c) <-> ObrOH#2
+% <10> : ObrOH#2 <-> ObrO_minus#2 + proton(c)
+% <11> : ObrO_minus#2 + hole(c) <-> O2(p) + #2
+% <12> : H2O(c) + #2 <-> H2O#2
+% <13> : H2O#2 <-> OH_minus#2 + proton(c)
+% <14> : OH_minus#2 <-> Obr_2minus#2 + proton(c)
 %
-ReactionNum = 14; % number of reactions
 Q0 = [1 1];       % total free sites
 T  = 300;         % reaction temperature : K
 DigitNum = 100;   % digit number used in Mupad for modified Newton method
-% Reaction reactant/production species concentration symbol
+% Reaction reactant/production species concentration symbols and corresponding values
 ReactionVarList = 'x_H2O C_hole x_O2 C_proton';
 ReactionVarValue = [1     1     1E-7   1E-7   ];
 % Reaction intermediate species coverage symbol, Q1_/Q2_ for site #1/#2
 ReactionCovList1 = 'Q1_O2_2minus Q1_O2_minus Q1_OH_minus Q1_OH_rad Q1_O_minus Q1_v';
 ReactionCovList2 = 'Q2_H2O Q2_OH_minus Q2_ObrOH Q2_ObrOH_minus Q2_ObrO_minus Q2_Obr_2minus Q2_Obr_minus Q2_v';
-% The correspoding reaction free barrier energy (Ea) and free eneries (G0)
-Ea = [ 0.5,     0,  0.35,  0.21,     0,     0,     0,  0.23,     0,   0.2,     0,     0,  0.34,  0.29];
+% The corresponding reaction free barrier energies (Ea) and free Gibbs eneries (G0)
+Ea = [ 0.5,  0.25,  0.35,  0.21,  0.25,  0.25,  0.25,  0.23,  0.25,   0.2,  0.25,     0,  0.34,  0.29];
 G0 = [0.07, -0.17, -0.52, -1.31, -1.55, -1.13,  0.08, -1.59, -0.87, -0.14, -1.27, -0.96, -0.09, -0.28];
+% ReactionNum = 14; % number of reactions
+ReactionNum = length(Ea);
 % set sample variable and value
 SampleVar1 = 10.^(-10:0.5:0);% for reaction concentration sample : C_hole
 ReactionVarSamplePosition = 2;
@@ -129,8 +130,8 @@ ReactionCovsymbol2 = sym(mupadmex(ReactionCovString2));
 ReactionCovsymbol = [ReactionCovsymbol1 ReactionCovsymbol2];
 CoverageNum = length(ReactionCovsymbol);
 % The mass balances of free sites
-SteadyStateEquation(6)  = sum(ReactionCovsymbol1) - Q0(1);
-SteadyStateEquation(14) = sum(ReactionCovsymbol2) - Q0(2);
+SteadyStateEquation(length(ReactionCovsymbol1)) = sum(ReactionCovsymbol1) - Q0(1);
+SteadyStateEquation(length(ReactionCovsymbol))  = sum(ReactionCovsymbol2) - Q0(2);
 
 kB = sym('1.3806505e-23');  % Boltzmann constant
 h = sym('6.62606957e-34');  % Plank constant
@@ -183,7 +184,7 @@ ReactionCovStrings = char(ReactionCovsymbol);
 ReactionCovStrings = ReactionCovStrings(10:end - 3);
 % send the SteadyStateEquation to mupad, and solved by modified Newton method
 ReactionSolution = evalin(symengine,['DIGITS := ' num2str(DigitNum) ': numeric::fsolve({', SteadyStateEquationStrings '},[' ReactionCovStrings '])']);
-CoverageSolution = mygetsol(ReactionSolution,ReactionCovStrings);
+CoverageSolution = getsolution(ReactionSolution,ReactionCovStrings);
 fprintf(['\nRun the Sample ' num2str(index) ' now\n']);
 disp('Coverages:');
 for ir = 1:length(ReactionCovsymbol)
@@ -201,14 +202,14 @@ for ir = 1:ReactionNum
 end
 function kvalue = RateConstantCalculation(Ea,G0,T,kB,e,h)
 % calculate the forward and reverse reaction rates
-% based on free barrier energy (Ea) and free eneries (G0)
+% based on free barrier energies (Ea) and free Gibbs eneries (G0)
 keV = e/T/kB;
 kBT_h = kB/h*T;
 Keq = exp(-G0*keV);
 kf = exp(-Ea*keV)*kBT_h;
 kr = kf./Keq;
 kvalue = [kf ; kr];
-function CoverageSolution = mygetsol(Reactionsolution,ReactionCovsymbol)
+function CoverageSolution = getsolution(Reactionsolution,ReactionCovsymbol)
 % get the solution from the symbol matrix
 solutions = strrep(strrep(char(Reactionsolution),'matrix([',''),']','');
 eval([strrep(strrep(solutions(2:end - 1),' == ','_new = sym('''),',',''');') ''');']);
